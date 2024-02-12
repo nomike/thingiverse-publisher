@@ -1,0 +1,241 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+thingiverse-publicher - A simple script to publish things to Thingiverse using the Thingiverse API.
+(C) 2024 - nomike[at]nomike[dot]com
+
+Usage:
+    thingiverse-publisher [options]
+    thingiverse-publisher [-h | --help]
+
+Options:
+    -b --bearer-token=<token>   The bearer token to authenticate with the Thingiverse API.
+    -u --username=<username>    The username of the Thingiverse account to use.
+    -h --help                   Show this screen.
+    -v --verbose                Show debug information.
+
+This script provides functionality to publish things to Thingiverse using the Thingiverse API.
+It allows users to create or update a thing on Thingiverse, upload files associated with the thing,
+and handle errors during the process.
+
+The script requires a configuration file named '.thingiverse_publisher.json' in the current directory,
+which contains the necessary information such as the bearer token, thing details, and file paths.
+
+The script uses the 'docopt' library to parse command-line arguments and the 'requests' library to make HTTP requests.
+"""
+
+from datetime import datetime
+import os
+from typing import Dict
+import requests
+import json
+import logging
+import hashlib
+from docopt import docopt
+
+# Request Access Page: https://www.thingiverse.com/login/oauth/authorize?client_id=fc43718e88cabfadfc48&response_type=code&redirect_uri=http://localhost:8080
+# Response code: d0e588e54733b5583dc3a939b817b5d1
+
+config = {}
+
+def get_file_info(thing_id, file_path) -> Dict:
+    logging.info(f"Checking if thing {thing_id} has file {file_path}...")
+    response = requests.get(f'{api_base_url}/things/{thing_id}/files', headers=headers)
+    response.raise_for_status()  # Raise an error if the request failed
+    thing_files = response.json()
+    matching_files = [thing_file for thing_file in thing_files if thing_file['name'] == os.path.basename(file_path)]
+    if len(matching_files) == 0:
+        return None
+    if len(matching_files) > 1:
+        raise ValueError(f"More than one file with name {os.path.basename(file_path)} found. Please delete all but one.")
+    return matching_files[0]
+
+    
+
+def compare_files(file_info, file_path) -> bool:
+    """
+    Download a file from Thingiverse and compare it with the local version using sha256 checksums.
+    """
+
+    local_file_size = os.path.getsize(file_path)
+    thing_file_size = file_info['size']
+    if local_file_size != thing_file_size:
+        logging.info(f"Local file size ({local_file_size} bytes) is different from Thingiverse file size ({thing_file_size} bytes).")
+        return False
+    else:
+        logging.info(f"Local file size ({local_file_size} bytes) matches Thingiverse file size ({thing_file_size} bytes).")
+
+    logging.info(f"Downloading file {os.path.basename(file_path)} to compare checksums...")
+    response = requests.get(file_info['public_url'], allow_redirects=True, headers={"User-Agent": "curl/8.2.1"})
+    response.raise_for_status()  # Raise an error if the request failed
+    
+    logging.info(f"Calculating checksum of downloaded file {os.path.basename(file_path)}...")
+    file_checksum = hashlib.sha256(response.content).hexdigest()
+    logging.debug(f"Checksum of downloaded file {os.path.basename(file_path)}: {file_checksum}")
+    logging.info(f"Calculating checksum of local file {os.path.basename(file_path)}...")
+    with open(file_path, 'rb') as f:
+        file_local_checksum = hashlib.sha256(f.read()).hexdigest()
+    logging.debug(f"Checksum of local file {file_path}: {file_local_checksum}")    
+
+    return file_checksum == file_local_checksum
+
+    
+def upload_file(file_path):
+    """
+    Uploads a file to Thingiverse.
+
+    Args:
+        file_path (str): The path of the file to be uploaded.
+
+    Raises:
+        requests.HTTPError: If the upload request or file upload fails.
+
+    Returns:
+        None
+
+    """
+    global config, headers, api_base_url
+
+    file_info = get_file_info(config['thing']['id'], file_path)
+    if file_info:
+        if compare_files(file_info, file_path):
+            logging.info(f"File {file_path} already exists on Thingiverse and has the same checksum. Skipping upload.")
+            return
+        
+        # delete file on thingiverse
+        logging.info(f"File {file_path} exists on Thingiverse but is different. Deleting before re-uploading it...")
+        response = requests.delete(f'{api_base_url}/things/{config["thing"]["id"]}/files/{file_info["id"]}', headers=headers)
+        response.raise_for_status()
+        logging.info(f"File {file_path} deleted successfully!")
+
+    
+    logging.info(f"File {file_path} does not exist on Thingiverse or local file is different. Uploading...")
+    
+    logging.info(f"Requesting upload for file {file_path}...")
+    prepare_response = requests.post(f'{api_base_url}/things/{config["thing"]["id"]}/files', headers=headers, json={"filename": os.path.basename(file_path)})
+    logging.debug(f"Response status code: {prepare_response.status_code}")
+    logging.debug(f"Response data: {json.dumps(prepare_response.json(), indent=2)}")
+    prepare_response.raise_for_status()  # Raise an error if the request failed
+    logging.info("File upload requested.") 
+
+    logging.info(f"Uploading file {file_path}...")
+    with open(file_path, 'rb') as file:
+        upload_response = requests.post(prepare_response.json()['action'], files={'file': file}, data=prepare_response.json()['fields'])
+        # response = requests.post('http://localhost:7461/foo', files=file, json=response.json()['fields'])
+        logging.debug(f"Response status code: {upload_response.status_code}")
+        logging.debug(f"Response data: {json.dumps(upload_response.json(), indent=2)}")
+        upload_response.raise_for_status()  # Raise an error if the request failed
+        logging.info("File uploaded successfully!")
+    logging.info("Calling finalizer...")
+    response = requests.post(prepare_response.json()['fields']['success_action_redirect'], headers=headers, data=prepare_response.json()['fields'])
+
+
+def create_or_update_thing():
+    """
+    Creates or updates a thing on Thingiverse based on the provided configuration.
+
+    This function checks if the thing already exists on Thingiverse by searching for a matching name.
+    If the thing exists, it updates the existing thing with the provided configuration.
+    If the thing does not exist, it creates a new thing with the provided configuration.
+
+    The function also uploads files associated with the thing.
+
+    Raises:
+        ValueError: If more than one thing with the same name is found on Thingiverse.
+
+    """
+    global config, headers, api_base_url
+
+    try:
+        if 'id' not in config['thing']:
+            logging.info("No ID found in config. Checking if thing already exists...")
+            logging.debug('List all things owned by {config["username"]}...')
+            response = requests.get(f'https://api.thingiverse.com/users/{config["username"]}/things', headers=headers)
+            response.raise_for_status()  # Raise an error if the request failed
+            data = response.json()
+            logging.debug(f"Response status code: {response.status_code}")
+            logging.debug(f"Response data: {json.dumps(data, indent=2)}")
+        
+            matching_things = [thing for thing in data if thing['name'] == config['thing']['name']]
+            if len(matching_things) > 1:
+                raise ValueError(f"More than one thing with name {config['thing']['name']} found. Please delete all but one.")
+            if len(matching_things) == 1:
+                logging.info(f"Thing with name {config['thing']['name']} already exists. Using id {matching_things[0]['id']}.")
+                config['thing']['id'] = matching_things[0]['id']
+            else:
+                logging.info(f"No thing with name {config['thing']['name']} found. New thing will be created.")    
+        if 'id' not in config['thing']:
+            logging.info("Thing does not exist, creating a new one...")
+            response = requests.post(f'{api_base_url}/things', headers=headers, json=config['thing'])
+            # response = requests.post(f'http://httpbin.org/post', headers=headers, json=config['thing'])
+            response.raise_for_status()  # Raise an error if the request failed
+            logging.info("Thing created successfully!")
+            logging.debug(f"Response status code: {response.status_code}")
+            logging.debug(f"Response data: {json.dumps(response.json(), indent=2)}")    
+            config['thing']['id'] = response.json()['id']
+        else:
+            logging.info(f"Thing does exist. Patching existing thing with ID {config['thing']['id']}...")
+            response = requests.patch(f'{api_base_url}/things/{config["thing"]["id"]}', headers=headers, json=config['thing'])
+            response.raise_for_status()  # Raise an error if the request failed
+            logging.info("Thing patched successfully!")
+            logging.debug(f"Response status code: {response.status_code}")
+            logging.debug(f"Response data: {json.dumps(response.json(), indent=2)}")
+        
+        logging.info("Uploading files...")
+        for file in config['files']:
+            upload_file(file)
+            
+    except requests.exceptions.RequestException as e:
+        print("Error:", e)
+
+def load_config(configuration_file: str) -> None:
+    """
+    Loads a configuration file into the global config dict.
+
+    Args:
+        configuration_file (str): The path of the configuration file to load.
+    """
+
+    global config
+    logging.debug(f'Loading config from {configuration_file}...')
+    try:
+        with open(configuration_file, 'r') as file:
+            loaded_config = json.load(file)
+        config.update(loaded_config)
+        logging.debug('Config loaded successfully.')
+    except FileNotFoundError:
+        logging.debug(f'No configuration file {configuration_file} found.')
+
+
+
+if __name__ == "__main__":
+    parameters = docopt(__doc__, version='thingiverse-publisher 0.1')
+
+    if parameters['--verbose']:
+        logging.getLogger().setLevel(logging.DEBUG)
+    else:
+        logging.getLogger().setLevel(logging.INFO)
+
+    load_config(os.path.expanduser('~/.thingiverse_publisher.json'))
+    load_config('.thingiverse_publisher.json')
+    if parameters['--bearer-token']:
+        config['bearer_token'] = parameters['--bearer-token']
+    if parameters['--username']:
+        config['username'] = parameters['--username']
+
+    with open ('README.md', 'rb') as file:
+        config['thing']['description'] = file.read().decode('utf-8')
+    
+    api_base_url = "https://api.thingiverse.com"  # Replace with correct API URL if needed
+
+
+    headers = {
+        "Authorization": f"Bearer {config['bearer_token']}",
+        "Host": "api.thingiverse.com",
+        "Content-Type": "application/json; charset=utf-8"
+    }
+    
+    create_or_update_thing()
+    logging.info("Saving config...")
+    with open('.thingiverse_publisher.json', 'w') as file:
+        json.dump(config, file, indent=2)
