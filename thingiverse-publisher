@@ -47,9 +47,6 @@ import logging
 import hashlib
 from docopt import docopt
 
-# Request Access Page: https://www.thingiverse.com/login/oauth/authorize?client_id=fc43718e88cabfadfc48&response_type=code&redirect_uri=http://localhost:8080
-# Response code: d0e588e54733b5583dc3a939b817b5d1
-
 config = {}
 
 def get_file_info(thing_id, file_path) -> Dict:
