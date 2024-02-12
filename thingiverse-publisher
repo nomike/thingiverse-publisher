@@ -52,6 +52,21 @@ config = {}
 
 
 def get_file_info(thing_id, file_path) -> Dict:
+    """
+    Retrieves information about a specific file associated with a Thingiverse thing.
+
+    Args:
+        thing_id (int): The ID of the Thingiverse thing.
+        file_path (str): The path of the file to retrieve information for.
+
+    Returns:
+        dict: A dictionary containing information about the file.
+
+    Raises:
+        requests.HTTPError: If the request to Thingiverse API fails.
+        ValueError: If more than one file with the same name is found.
+
+    """
     logging.info(f"Checking if thing {thing_id} has file {file_path}...")
     response = requests.get(
         f'{api_base_url}/things/{thing_id}/files', headers=headers)
@@ -70,6 +85,11 @@ def get_file_info(thing_id, file_path) -> Dict:
 def compare_files(file_info, file_path) -> bool:
     """
     Download a file from Thingiverse and compare it with the local version using sha256 checksums.
+
+    Args:
+        file_info (dict): The file information from Thingiverse.
+        file_path (str): The path of the local file to compare.
+    
     """
 
     local_file_size = os.path.getsize(file_path)
