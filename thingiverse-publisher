@@ -48,6 +48,7 @@ from typing import Dict
 import requests
 from docopt import docopt
 
+loaded_config = {}
 config = {}
 
 
@@ -194,7 +195,7 @@ def create_or_update_thing():
         ValueError: If more than one thing with the same name is found on Thingiverse.
 
     """
-    global config, headers, api_base_url
+    global loaded_config, config, headers, api_base_url
 
     try:
         if 'id' not in config['thing']:
@@ -216,6 +217,7 @@ def create_or_update_thing():
             if len(matching_things) == 1:
                 logging.info(
                     f"Thing with name {config['thing']['name']} already exists. Using id {matching_things[0]['id']}.")
+                loaded_config['thing']['id'] = matching_things[0]['id']
                 config['thing']['id'] = matching_things[0]['id']
             else:
                 logging.info(
@@ -258,12 +260,12 @@ def load_config(configuration_file: str) -> None:
         configuration_file (str): The path of the configuration file to load.
     """
 
-    global config
+    global loaded_config
     logging.debug(f'Loading config from {configuration_file}...')
     try:
         with open(configuration_file, 'r') as file:
-            loaded_config = json.load(file)
-        config.update(loaded_config)
+            file_config = json.load(file)
+        loaded_config.update(file_config)
         logging.debug('Config loaded successfully.')
     except FileNotFoundError:
         logging.debug(f'No configuration file {configuration_file} found.')
@@ -279,6 +281,9 @@ if __name__ == "__main__":
 
     load_config(os.path.expanduser('~/.thingiverse_publisher.json'))
     load_config('.thingiverse_publisher.json')
+
+    config.update(loaded_config)
+
     if parameters['--bearer-token']:
         config['bearer_token'] = parameters['--bearer-token']
     if parameters['--username']:
@@ -298,4 +303,4 @@ if __name__ == "__main__":
     create_or_update_thing()
     logging.info("Saving config...")
     with open('.thingiverse_publisher.json', 'w') as file:
-        json.dump(config, file, indent=2)
+        json.dump(loaded_config, file, indent=2)
