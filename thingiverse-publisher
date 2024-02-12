@@ -38,6 +38,7 @@ which contains the necessary information such as the bearer token, thing details
 The script uses the 'docopt' library to parse command-line arguments and the 'requests' library to make HTTP requests.
 """
 
+import copy
 import hashlib
 import json
 import logging
@@ -48,7 +49,7 @@ from typing import Dict
 import requests
 from docopt import docopt
 
-loaded_config = {}
+local_config = {}
 config = {}
 
 
@@ -90,7 +91,7 @@ def compare_files(file_info, file_path) -> bool:
     Args:
         file_info (dict): The file information from Thingiverse.
         file_path (str): The path of the local file to compare.
-    
+
     """
 
     local_file_size = os.path.getsize(file_path)
@@ -195,7 +196,7 @@ def create_or_update_thing():
         ValueError: If more than one thing with the same name is found on Thingiverse.
 
     """
-    global loaded_config, config, headers, api_base_url
+    global local_config, config, headers, api_base_url
 
     try:
         if 'id' not in config['thing']:
@@ -217,7 +218,7 @@ def create_or_update_thing():
             if len(matching_things) == 1:
                 logging.info(
                     f"Thing with name {config['thing']['name']} already exists. Using id {matching_things[0]['id']}.")
-                loaded_config['thing']['id'] = matching_things[0]['id']
+                local_config['thing']['id'] = matching_things[0]['id']
                 config['thing']['id'] = matching_things[0]['id']
             else:
                 logging.info(
@@ -252,7 +253,7 @@ def create_or_update_thing():
         print("Error:", e)
 
 
-def load_config(configuration_file: str) -> None:
+def load_config(configuration_file: str) -> Dict:
     """
     Loads a configuration file into the global config dict.
 
@@ -260,13 +261,12 @@ def load_config(configuration_file: str) -> None:
         configuration_file (str): The path of the configuration file to load.
     """
 
-    global loaded_config
     logging.debug(f'Loading config from {configuration_file}...')
     try:
         with open(configuration_file, 'r') as file:
-            file_config = json.load(file)
-        loaded_config.update(file_config)
+            config = json.load(file)
         logging.debug('Config loaded successfully.')
+        return config
     except FileNotFoundError:
         logging.debug(f'No configuration file {configuration_file} found.')
 
@@ -279,10 +279,10 @@ if __name__ == "__main__":
     else:
         logging.getLogger().setLevel(logging.INFO)
 
-    load_config(os.path.expanduser('~/.thingiverse_publisher.json'))
-    load_config('.thingiverse_publisher.json')
-
-    config.update(loaded_config)
+    config.update(load_config(
+        os.path.expanduser('~/.thingiverse_publisher.json')))
+    local_config = load_config('.thingiverse_publisher.json')
+    config.update(local_config)
 
     if parameters['--bearer-token']:
         config['bearer_token'] = parameters['--bearer-token']
@@ -303,4 +303,4 @@ if __name__ == "__main__":
     create_or_update_thing()
     logging.info("Saving config...")
     with open('.thingiverse_publisher.json', 'w') as file:
-        json.dump(loaded_config, file, indent=2)
+        json.dump(local_config, file, indent=2)
