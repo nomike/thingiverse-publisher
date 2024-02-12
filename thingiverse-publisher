@@ -38,13 +38,14 @@ which contains the necessary information such as the bearer token, thing details
 The script uses the 'docopt' library to parse command-line arguments and the 'requests' library to make HTTP requests.
 """
 
-from datetime import datetime
-import os
-from typing import Dict
-import requests
+import hashlib
 import json
 import logging
-import hashlib
+import os
+from datetime import datetime
+from typing import Dict
+
+import requests
 from docopt import docopt
 
 config = {}
