@@ -2,6 +2,8 @@
 
 A small tool for publishig things to Thingiverse.
 
+The tool is very rudimentary and needs some code-clenup, but it does it's job, which is to upload a 3D model to Thingiverse.
+
 ## Pre-requisites
 
 - Python 3.6 or later
