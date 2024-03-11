@@ -53,7 +53,7 @@ local_config = {}
 config = {}
 
 
-def get_file_info(thing_id, file_path) -> Dict:
+def get_file_or_image_info(thing_id, type, file_path) -> Dict:
     """
     Retrieves information about a specific file associated with a Thingiverse thing.
 
@@ -69,9 +69,9 @@ def get_file_info(thing_id, file_path) -> Dict:
         ValueError: If more than one file with the same name is found.
 
     """
-    logging.info(f"Checking if thing {thing_id} has file {file_path}...")
+    logging.info(f"Checking if thing {thing_id} has {type} {file_path}...")
     response = requests.get(
-        f'{api_base_url}/things/{thing_id}/files', headers=headers)
+        f'{api_base_url}/things/{thing_id}/{type}s', headers=headers)
     response.raise_for_status()  # Raise an error if the request failed
     thing_files = response.json()
     matching_files = [
@@ -140,7 +140,8 @@ def upload_file(file_path):
     """
     global config, headers, api_base_url
 
-    file_info = get_file_info(config['thing']['id'], file_path)
+    file_info = get_file_or_image_info(config['thing']['id'], 'file', file_path) or get_file_or_image_info(config['thing']['id'], 'image', file_path)
+    
     if file_info:
         if compare_files(file_info, file_path):
             logging.info(
@@ -248,6 +249,10 @@ def create_or_update_thing():
         logging.info("Uploading files...")
         for file in config['files']:
             upload_file(file)
+        ## Image upload is currently disabled as it can´t check for images already existing yet and thus would upload them every time causing duplicates.
+        # logging.info("Uploading images...")
+        # for file in config['images']:
+        #     upload_file(file)
 
     except requests.exceptions.RequestException as e:
         print("Error:", e)
