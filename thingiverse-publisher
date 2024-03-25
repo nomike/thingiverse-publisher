@@ -307,5 +307,6 @@ if __name__ == "__main__":
 
     create_or_update_thing()
     logging.info("Saving config...")
+    local_config['thing'].pop("description")
     with open('.thingiverse_publisher.json', 'w') as file:
         json.dump(local_config, file, indent=2)
