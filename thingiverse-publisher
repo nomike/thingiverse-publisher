@@ -139,7 +139,7 @@ def check_image_mtime(image_path: str):
     return local_mtime > thingiverse_mtime
 
 
-def upload_image(image_path: str, type: str):
+def upload_image(image_path: str):
     global config, headers, api_base_url
     if 'id' in local_config['images'][image_path]:
         if check_image_mtime(image_path):
@@ -183,7 +183,7 @@ def upload_image(image_path: str, type: str):
     local_config['images'][image_path] = response.json()
     
 
-def upload_file_or_image(file_path, type):
+def upload_file(file_path, type):
     """
     Uploads a file to Thingiverse.
 
@@ -311,11 +311,11 @@ def create_or_update_thing():
 
         logging.info("Uploading files...")
         for file in config['files'].keys():
-            upload_file_or_image(file, "files")
+            upload_file(file, "files")
         # Image upload is currently disabled as it can´t check for images already existing yet and thus would upload them every time causing duplicates.
         logging.info("Uploading images...")
         for file in config['images'].keys():
-            upload_image(file, type="images")
+            upload_image(file)
 
 
     except requests.exceptions.RequestException as e:
