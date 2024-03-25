@@ -123,8 +123,44 @@ def compare_files(file_info, file_path) -> bool:
 
     return file_checksum == file_local_checksum
 
+def upload_image(image_path):
+    global config, headers, api_base_url
+    if 'id' in local_config['images'][image_path]:
+        logging.info(f"Image {image_path} already exists on Thingiverse. Skipping upload.")
+        return
 
-def upload_file(file_path):
+    logging.info(
+        f"File {image_path} does not exist on Thingiverse or local file is different. Uploading...")
+
+    logging.info(f"Requesting upload for file {image_path}...")
+    prepare_response = requests.post(
+        f'{api_base_url}/things/{config["thing"]["id"]}/files', headers=headers, json={"filename": os.path.basename(image_path)})
+    logging.debug(f"Response status code: {prepare_response.status_code}")
+    logging.debug(
+        f"Response data: {json.dumps(prepare_response.json(), indent=2)}")
+    prepare_response.raise_for_status()  # Raise an error if the request failed
+    logging.info("File upload requested.")
+
+    logging.info(f"Uploading file {image_path}...")
+    with open(image_path, 'rb') as file:
+        upload_response = requests.post(prepare_response.json()['action'], files={
+                                        'file': file}, data=prepare_response.json()['fields'])
+        # response = requests.post('http://localhost:7461/foo', files=file, json=response.json()['fields'])
+        logging.debug(f"Response status code: {upload_response.status_code}")
+        logging.debug(
+            f"Response data: {json.dumps(upload_response.json(), indent=2)}")
+        upload_response.raise_for_status()  # Raise an error if the request failed
+        logging.info("File uploaded successfully!")
+    logging.info("Calling finalizer...")
+    response = requests.post(prepare_response.json()[
+                             'fields']['success_action_redirect'], headers=headers, data=prepare_response.json()['fields'])
+    logging.debug(f"Response status code: {response.status_code}")
+    logging.debug(
+        f"Response data: {json.dumps(response.json(), indent=2)}")
+    local_config['images'][image_path] = response.json()
+    
+
+def upload_file_or_image(file_path, type):
     """
     Uploads a file to Thingiverse.
 
@@ -141,7 +177,7 @@ def upload_file(file_path):
     global config, headers, api_base_url
 
     file_info = get_file_or_image_info(config['thing']['id'], 'file', file_path) or get_file_or_image_info(config['thing']['id'], 'image', file_path)
-    
+
     if file_info:
         if compare_files(file_info, file_path):
             logging.info(
@@ -181,7 +217,11 @@ def upload_file(file_path):
     logging.info("Calling finalizer...")
     response = requests.post(prepare_response.json()[
                              'fields']['success_action_redirect'], headers=headers, data=prepare_response.json()['fields'])
-
+    logging.debug(f"Response status code: {response.status_code}")
+    logging.debug(
+        f"Response data: {json.dumps(response.json(), indent=2)}")
+    local_config[type][file_path] = response.json()
+    
 
 def create_or_update_thing():
     """
@@ -247,12 +287,13 @@ def create_or_update_thing():
                 f"Response data: {json.dumps(response.json(), indent=2)}")
 
         logging.info("Uploading files...")
-        for file in config['files']:
-            upload_file(file)
-        ## Image upload is currently disabled as it can´t check for images already existing yet and thus would upload them every time causing duplicates.
-        # logging.info("Uploading images...")
-        # for file in config['images']:
-        #     upload_file(file)
+        for file in config['files'].keys():
+            upload_file_or_image(file, "files")
+        # Image upload is currently disabled as it can´t check for images already existing yet and thus would upload them every time causing duplicates.
+        logging.info("Uploading images...")
+        for file in config['images'].keys():
+            upload_image(file)
+
 
     except requests.exceptions.RequestException as e:
         print("Error:", e)
