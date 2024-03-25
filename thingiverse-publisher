@@ -123,12 +123,35 @@ def compare_files(file_info, file_path) -> bool:
 
     return file_checksum == file_local_checksum
 
-def upload_image(image_path):
+def check_image_mtime(image_path: str):
+    global config, headers, api_base_url
+
+    local_mtime = datetime.fromtimestamp(os.path.getmtime(image_path)).astimezone()
+    # Send an API request to get metadata of the image
+    response = requests.get(
+        f'{api_base_url}/things/{config["thing"]["id"]}/images/{config["images"][image_path]["id"]}', headers=headers)
+    logging.debug(f"Response status code: {response.status_code}")
+    logging.debug(
+        f"Response data: {json.dumps(response.json(), indent=2)}")
+    response.raise_for_status()  # Raise an error if the request failed
+    logging.info("File upload requested.")
+    thingiverse_mtime = datetime.fromisoformat(response.json()['added'])
+    return local_mtime > thingiverse_mtime
+
+
+def upload_image(image_path: str, type: str):
     global config, headers, api_base_url
     if 'id' in local_config['images'][image_path]:
-        logging.info(f"Image {image_path} already exists on Thingiverse. Skipping upload.")
-        return
-
+        if check_image_mtime(image_path):
+            logging.info("Local image is newer than the one on Thingiverse. Deleting old image...")
+            response = requests.delete(
+                f'{api_base_url}/things/{config["thing"]["id"]}/images/{config["images"][image_path]["id"]}', headers=headers)
+            logging.debug(f"Response status code: {response.status_code}")
+            logging.debug(f"Response data: {json.dumps(response.json(), indent=2)}")
+            response.raise_for_status()
+        else:
+            logging.info(f"Image {image_path} already exists on Thingiverse. Skipping upload.")
+            return
     logging.info(
         f"File {image_path} does not exist on Thingiverse or local file is different. Uploading...")
 
@@ -292,7 +315,7 @@ def create_or_update_thing():
         # Image upload is currently disabled as it can´t check for images already existing yet and thus would upload them every time causing duplicates.
         logging.info("Uploading images...")
         for file in config['images'].keys():
-            upload_image(file)
+            upload_image(file, type="images")
 
 
     except requests.exceptions.RequestException as e:
