@@ -20,8 +20,8 @@ sudo make install
 ```
 
 ## Uninstalling
-    
-```bash 
+
+```bash
 sudo make uninstall
 ```
 
@@ -62,7 +62,7 @@ Place a file `.thingiverse_publisher.jso` in the directory of your 3D model. The
 
 ## Getting a Bearer Token
 
-1. Go to https://www.thingiverse.com/apps/create
+1. Go to <https://www.thingiverse.com/apps/create>
 2. Fill in the form
 3. Click on "Create Application"
 4. Copy the "Client ID" and "Client Secret" to a safe place
