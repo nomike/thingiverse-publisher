@@ -360,6 +360,8 @@ if __name__ == "__main__":
 
     with open('README.md', 'rb') as file:
         config['thing']['description'] = file.read().decode('utf-8')
+    with open('print-instructions.md', 'rb') as file:
+        config['thing']['instructions'] = file.read().decode('utf-8')
 
     api_base_url = "https://api.thingiverse.com"
 
@@ -372,5 +374,6 @@ if __name__ == "__main__":
     create_or_update_thing()
     logging.info("Saving config...")
     local_config['thing'].pop("description")
+    local_config['thing'].pop("instructions")
     with open('.thingiverse_publisher.json', 'w') as file:
         json.dump(local_config, file, indent=2)
