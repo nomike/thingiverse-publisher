@@ -43,7 +43,7 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
 
 import requests
@@ -53,181 +53,52 @@ local_config = {}
 config = {}
 
 
-def get_file_or_image_info(thing_id, type, file_path) -> Dict:
-    """
-    Retrieves information about a specific file associated with a Thingiverse thing.
-
-    Args:
-        thing_id (int): The ID of the Thingiverse thing.
-        file_path (str): The path of the file to retrieve information for.
-
-    Returns:
-        dict: A dictionary containing information about the file.
-
-    Raises:
-        requests.HTTPError: If the request to Thingiverse API fails.
-        ValueError: If more than one file with the same name is found.
-
-    """
-    logging.info(f"Checking if thing {thing_id} has {type} {file_path}...")
-    response = requests.get(
-        f'{api_base_url}/things/{thing_id}/{type}s', headers=headers)
-    response.raise_for_status()  # Raise an error if the request failed
-    thing_files = response.json()
-    matching_files = [
-        thing_file for thing_file in thing_files if thing_file['name'] == os.path.basename(file_path)]
-    if len(matching_files) == 0:
-        return None
-    if len(matching_files) > 1:
-        raise ValueError(
-            f"More than one file with name {os.path.basename(file_path)} found. Please delete all but one.")
-    return matching_files[0]
-
-
-def compare_files(file_info, file_path) -> bool:
-    """
-    Download a file from Thingiverse and compare it with the local version using sha256 checksums.
-
-    Args:
-        file_info (dict): The file information from Thingiverse.
-        file_path (str): The path of the local file to compare.
-
-    """
-
-    local_file_size = os.path.getsize(file_path)
-    thing_file_size = file_info['size']
-    if local_file_size != thing_file_size:
-        logging.info(
-            f"Local file size ({local_file_size} bytes) is different from Thingiverse file size ({thing_file_size} bytes).")
-        return False
-    else:
-        logging.info(
-            f"Local file size ({local_file_size} bytes) matches Thingiverse file size ({thing_file_size} bytes).")
-
-    logging.info(
-        f"Downloading file {os.path.basename(file_path)} to compare checksums...")
-    response = requests.get(file_info['public_url'], allow_redirects=True, headers={
-                            "User-Agent": "curl/8.2.1"})
-    response.raise_for_status()  # Raise an error if the request failed
-
-    logging.info(
-        f"Calculating checksum of downloaded file {os.path.basename(file_path)}...")
-    file_checksum = hashlib.sha256(response.content).hexdigest()
-    logging.debug(
-        f"Checksum of downloaded file {os.path.basename(file_path)}: {file_checksum}")
-    logging.info(
-        f"Calculating checksum of local file {os.path.basename(file_path)}...")
-    with open(file_path, 'rb') as f:
-        file_local_checksum = hashlib.sha256(f.read()).hexdigest()
-    logging.debug(f"Checksum of local file {file_path}: {file_local_checksum}")
-
-    return file_checksum == file_local_checksum
-
-def check_image_mtime(image_path: str):
+def check_file_mtime(file_path: str, type: str):
     global config, headers, api_base_url
 
-    local_mtime = datetime.fromtimestamp(os.path.getmtime(image_path)).astimezone()
+    local_mtime = datetime.fromtimestamp(os.path.getmtime(file_path)).astimezone()
     # Send an API request to get metadata of the image
     response = requests.get(
-        f'{api_base_url}/things/{config["thing"]["id"]}/images/{config["images"][image_path]["id"]}', headers=headers)
+        f'{api_base_url}/things/{config["thing"]["id"]}/{type}s/{config[f"{type}s"][file_path]["id"]}', headers=headers)
     logging.debug(f"Response status code: {response.status_code}")
     logging.debug(
         f"Response data: {json.dumps(response.json(), indent=2)}")
     response.raise_for_status()  # Raise an error if the request failed
-    logging.info("File upload requested.")
-    thingiverse_mtime = datetime.fromisoformat(response.json()['added'])
+    if type == 'file':
+        thingiverse_mtime = datetime.fromisoformat(response.json()['date'] + "Z")
+    elif type == 'image':
+        thingiverse_mtime = datetime.fromisoformat(response.json()['added'])
+    logging.debug(f"Local mtime: {local_mtime}")
+    logging.debug(f"Thingiverse mtime: {thingiverse_mtime.astimezone()}")
     return local_mtime > thingiverse_mtime
 
 
-def upload_image(image_path: str):
+def upload_image_or_file(file_path: str, type: str):
     global config, headers, api_base_url
-    if 'id' in local_config['images'][image_path]:
-        if check_image_mtime(image_path):
-            logging.info("Local image is newer than the one on Thingiverse. Deleting old image...")
+    if 'id' in local_config[f'{type}s'][file_path]:
+        if check_file_mtime(file_path, type):
+            logging.info(f"Local {type} is newer than the one on Thingiverse. Deleting old {type}...")
             response = requests.delete(
-                f'{api_base_url}/things/{config["thing"]["id"]}/images/{config["images"][image_path]["id"]}', headers=headers)
+                f'{api_base_url}/things/{config["thing"]["id"]}/{type}s/{config[f"{type}s"][file_path]["id"]}', headers=headers)
             logging.debug(f"Response status code: {response.status_code}")
             logging.debug(f"Response data: {json.dumps(response.json(), indent=2)}")
             response.raise_for_status()
         else:
-            logging.info(f"Image {image_path} already exists on Thingiverse. Skipping upload.")
+            logging.info(f"{type.capitalize()} \"{file_path}\" already exists on Thingiverse. Skipping upload.")
             return
     logging.info(
-        f"File {image_path} does not exist on Thingiverse or local file is different. Uploading...")
+        f"{type.capitalize()} {file_path} does not exist on Thingiverse or local {type} is newer. Uploading...")
 
-    logging.info(f"Requesting upload for file {image_path}...")
+    logging.info(f"Requesting upload for {type} \"{file_path}\"...")
     prepare_response = requests.post(
-        f'{api_base_url}/things/{config["thing"]["id"]}/files', headers=headers, json={"filename": os.path.basename(image_path)})
+        f'{api_base_url}/things/{config["thing"]["id"]}/{type}s', headers=headers, json={"filename": os.path.basename(file_path)})
     logging.debug(f"Response status code: {prepare_response.status_code}")
     logging.debug(
         f"Response data: {json.dumps(prepare_response.json(), indent=2)}")
     prepare_response.raise_for_status()  # Raise an error if the request failed
     logging.info("File upload requested.")
 
-    logging.info(f"Uploading file {image_path}...")
-    with open(image_path, 'rb') as file:
-        upload_response = requests.post(prepare_response.json()['action'], files={
-                                        'file': file}, data=prepare_response.json()['fields'])
-        # response = requests.post('http://localhost:7461/foo', files=file, json=response.json()['fields'])
-        logging.debug(f"Response status code: {upload_response.status_code}")
-        logging.debug(
-            f"Response data: {json.dumps(upload_response.json(), indent=2)}")
-        upload_response.raise_for_status()  # Raise an error if the request failed
-        logging.info("File uploaded successfully!")
-    logging.info("Calling finalizer...")
-    response = requests.post(prepare_response.json()[
-                             'fields']['success_action_redirect'], headers=headers, data=prepare_response.json()['fields'])
-    logging.debug(f"Response status code: {response.status_code}")
-    logging.debug(
-        f"Response data: {json.dumps(response.json(), indent=2)}")
-    local_config['images'][image_path] = response.json()
-    
-
-def upload_file(file_path, type):
-    """
-    Uploads a file to Thingiverse.
-
-    Args:
-        file_path (str): The path of the file to be uploaded.
-
-    Raises:
-        requests.HTTPError: If the upload request or file upload fails.
-
-    Returns:
-        None
-
-    """
-    global config, headers, api_base_url
-
-    file_info = get_file_or_image_info(config['thing']['id'], 'file', file_path) or get_file_or_image_info(config['thing']['id'], 'image', file_path)
-
-    if file_info:
-        if compare_files(file_info, file_path):
-            logging.info(
-                f"File {file_path} already exists on Thingiverse and has the same checksum. Skipping upload.")
-            return
-
-        # delete file on thingiverse
-        logging.info(
-            f"File {file_path} exists on Thingiverse but is different. Deleting before re-uploading it...")
-        response = requests.delete(
-            f'{api_base_url}/things/{config["thing"]["id"]}/files/{file_info["id"]}', headers=headers)
-        response.raise_for_status()
-        logging.info(f"File {file_path} deleted successfully!")
-
-    logging.info(
-        f"File {file_path} does not exist on Thingiverse or local file is different. Uploading...")
-
-    logging.info(f"Requesting upload for file {file_path}...")
-    prepare_response = requests.post(
-        f'{api_base_url}/things/{config["thing"]["id"]}/files', headers=headers, json={"filename": os.path.basename(file_path)})
-    logging.debug(f"Response status code: {prepare_response.status_code}")
-    logging.debug(
-        f"Response data: {json.dumps(prepare_response.json(), indent=2)}")
-    prepare_response.raise_for_status()  # Raise an error if the request failed
-    logging.info("File upload requested.")
-
-    logging.info(f"Uploading file {file_path}...")
+    logging.info(f"Uploading {type} {file_path}...")
     with open(file_path, 'rb') as file:
         upload_response = requests.post(prepare_response.json()['action'], files={
                                         'file': file}, data=prepare_response.json()['fields'])
@@ -236,14 +107,20 @@ def upload_file(file_path, type):
         logging.debug(
             f"Response data: {json.dumps(upload_response.json(), indent=2)}")
         upload_response.raise_for_status()  # Raise an error if the request failed
-        logging.info("File uploaded successfully!")
+        logging.info(f"{type.capitalize()} uploaded successfully!")
     logging.info("Calling finalizer...")
     response = requests.post(prepare_response.json()[
                              'fields']['success_action_redirect'], headers=headers, data=prepare_response.json()['fields'])
     logging.debug(f"Response status code: {response.status_code}")
     logging.debug(
         f"Response data: {json.dumps(response.json(), indent=2)}")
-    local_config[type][file_path] = response.json()
+    local_config[f'{type}s'][file_path] = response.json()
+    
+def upload_image(image_path):
+    upload_image_or_file(image_path, "image")
+
+def upload_file(file_path, type):
+    upload_image_or_file(file_path, "file")
     
 
 def create_or_update_thing():
