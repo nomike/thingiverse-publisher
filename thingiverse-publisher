@@ -91,7 +91,7 @@ def upload_image_or_file(file_path: str, type: str):
 
     logging.info(f"Requesting upload for {type} \"{file_path}\"...")
     prepare_response = requests.post(
-        f'{api_base_url}/things/{config["thing"]["id"]}/{type}s', headers=headers, json={"filename": os.path.basename(file_path)})
+        f'{api_base_url}/things/{config["thing"]["id"]}/files', headers=headers, json={"filename": os.path.basename(file_path)})
     logging.debug(f"Response status code: {prepare_response.status_code}")
     logging.debug(
         f"Response data: {json.dumps(prepare_response.json(), indent=2)}")
@@ -218,7 +218,7 @@ def load_config(configuration_file: str) -> Dict:
 
 
 if __name__ == "__main__":
-    parameters = docopt(__doc__, version='thingiverse-publisher 0.3')
+    parameters = docopt(__doc__, version='thingiverse-publisher 0.4')
 
     if parameters['--verbose']:
         logging.getLogger().setLevel(logging.DEBUG)
