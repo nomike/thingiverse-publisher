@@ -59,7 +59,7 @@ def check_file_mtime(file_path: str, type: str):
     local_mtime = datetime.fromtimestamp(os.path.getmtime(file_path)).astimezone()
     # Send an API request to get metadata of the image
     response = requests.get(
-        f'{api_base_url}/things/{config["thing"]["id"]}/{type}s/{config[f"{type}s"][file_path]["id"]}', headers=headers)
+        f'{api_base_url}/THINGS/{config["thing"]["id"]}/{type.upper()}S/{config[f"{type}s"][file_path]["id"]}', headers=headers)
     logging.debug(f"Response status code: {response.status_code}")
     logging.debug(
         f"Response data: {json.dumps(response.json(), indent=2)}")
@@ -79,7 +79,7 @@ def upload_image_or_file(file_path: str, type: str):
         if check_file_mtime(file_path, type):
             logging.info(f"Local {type} is newer than the one on Thingiverse. Deleting old {type}...")
             response = requests.delete(
-                f'{api_base_url}/things/{config["thing"]["id"]}/{type}s/{config[f"{type}s"][file_path]["id"]}', headers=headers)
+                f'{api_base_url}/THINGS/{config["thing"]["id"]}/{type.upper()}S/{config[f"{type}s"][file_path]["id"]}', headers=headers)
             logging.debug(f"Response status code: {response.status_code}")
             logging.debug(f"Response data: {json.dumps(response.json(), indent=2)}")
             response.raise_for_status()
@@ -91,7 +91,7 @@ def upload_image_or_file(file_path: str, type: str):
 
     logging.info(f"Requesting upload for {type} \"{file_path}\"...")
     prepare_response = requests.post(
-        f'{api_base_url}/things/{config["thing"]["id"]}/files', headers=headers, json={"filename": os.path.basename(file_path)})
+        f'{api_base_url}/THINGS/{config["thing"]["id"]}/FILES', headers=headers, json={"filename": os.path.basename(file_path)})
     logging.debug(f"Response status code: {prepare_response.status_code}")
     logging.debug(
         f"Response data: {json.dumps(prepare_response.json(), indent=2)}")
@@ -145,7 +145,7 @@ def create_or_update_thing():
                 "No ID found in config. Checking if thing already exists...")
             logging.debug('List all things owned by {config["username"]}...')
             response = requests.get(
-                f'https://api.thingiverse.com/users/{config["username"]}/things', headers=headers)
+                f'{api_base_url}/USERS/{config["username"]}/THINGS', headers=headers)
             response.raise_for_status()  # Raise an error if the request failed
             data = response.json()
             logging.debug(f"Response status code: {response.status_code}")
@@ -167,7 +167,7 @@ def create_or_update_thing():
         if 'id' not in config['thing']:
             logging.info("Thing does not exist, creating a new one...")
             response = requests.post(
-                f'{api_base_url}/things', headers=headers, json=config['thing'])
+                f'{api_base_url}/THINGS', headers=headers, json=config['thing'])
             # response = requests.post(f'http://httpbin.org/post', headers=headers, json=config['thing'])
             response.raise_for_status()  # Raise an error if the request failed
             logging.info("Thing created successfully!")
@@ -219,7 +219,7 @@ def load_config(configuration_file: str) -> Dict:
 
 
 if __name__ == "__main__":
-    parameters = docopt(__doc__, version='thingiverse-publisher 0.4')
+    parameters = docopt(__doc__, version='thingiverse-publisher 0.5.0')
 
     if parameters['--verbose']:
         logging.getLogger().setLevel(logging.DEBUG)
