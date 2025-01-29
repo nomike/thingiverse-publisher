@@ -197,6 +197,7 @@ def create_or_update_thing():
 
     except requests.exceptions.RequestException as e:
         print("Error:", e)
+        print(f'Upstream error: {e.response.content.decode(e.response.encoding)}')
 
 
 def load_config(configuration_file: str) -> Dict:
