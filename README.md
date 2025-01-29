@@ -62,19 +62,12 @@ Place a file `.thingiverse_publisher.jso` in the directory of your 3D model. The
 
 ### Available license options
 
-Thingiverse currently does not document which licenses you can use in the API. Since the move to the new API though, the option could be set to any string availbable in the web GUI.
-These currently are:
+Thingiverse currently does not document which licenses you can use in the API.
+This interface does not seem to be symetric though. What you get as a value for "license" in a response, is not accepted as a value in a request. I've created a support case for getting a list of valid options with thingiverse, and I'm currently waiting for a response.
 
-- Create Commons - Attribution
-- Create Commons - Attribution - Share Alike
-- Create Commons - Attribution - No Derivatives
-- Create Commons - Attribution - Non-Commercial
-- Create Commons - Attribution - Non-Commercial - Share Alike
-- Create Commons - Attribution - Non-Commercial - No Derivatives
-- Create Commons - Public Domain Dedication
-- GNU - GPL
-- GNU - LGPL
-- BSD License
+Valid options I have found so far are:
+
+cc: Creative Commons - Attribution
 
 ## Getting a Bearer Token
 
