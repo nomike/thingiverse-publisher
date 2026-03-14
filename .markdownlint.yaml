@@ -1,0 +1,5 @@
+# Allow longer lines (default 80 is strict for prose with URLs)
+MD013: false
+# Ordered list prefix: use "1." for all items (markdown renumbers)
+MD029:
+  style: one

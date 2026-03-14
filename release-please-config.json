@@ -1,0 +1,10 @@
+{
+  "release-type": "python",
+  "packages": {
+    ".": {
+      "package-name": "thingiverse-publisher",
+      "release-type": "python",
+      "extra-files": ["thingiverse_publisher/__init__.py"]
+    }
+  }
+}
