@@ -7,27 +7,29 @@ It is in a very early stage of development, so expect breaking changes.
 
 ## Pre-requisites
 
-- Python 3.6 or later
-- python3-docopt
-- python3-requests
+- Python 3.10 or later
 - A Thingiverse account
 - A Thingiverse Bearer token
 
 ## Installing
 
-```bash
-sudo make install
-```
-
-## Uninstalling
+From the project directory:
 
 ```bash
-sudo make uninstall
+pip install .
 ```
+
+For an editable install (development):
+
+```bash
+pip install -e .
+```
+
+This installs the `thingiverse-publisher` command on your PATH.
 
 ## Configuring
 
-Place a file `.thingiverse_publisher.jso` in your home directory with the following content (see below on how to get a bearer token):
+Place a file `.thingiverse_publisher.json` in your home directory with the following content (see below on how to get a bearer token):
 
 ```json
 {
@@ -36,7 +38,7 @@ Place a file `.thingiverse_publisher.jso` in your home directory with the follow
 }
 ```
 
-Place a file `.thingiverse_publisher.jso` in the directory of your 3D model. The file should look like this:
+Place a file `.thingiverse_publisher.json` in the directory of your 3D model. The file should look like this:
 
 ```json
 {
