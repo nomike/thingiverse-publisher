@@ -30,23 +30,3 @@ def test_load_config_parses_valid_json() -> None:
         assert result["username"] == "test"
     finally:
         Path(path).unlink(missing_ok=True)
-
-
-def test_load_config_parses_json5_with_comments() -> None:
-    """load_config parses JSON5 with comments."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-        f.write(
-            """{
-                // optional comment
-                "bearer_token": "xyz",
-                "username": "someone"
-            }"""
-        )
-        path = f.name
-    try:
-        result = load_config(path)
-        assert result is not None
-        assert result["bearer_token"] == "xyz"
-        assert result["username"] == "someone"
-    finally:
-        Path(path).unlink(missing_ok=True)

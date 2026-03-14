@@ -28,7 +28,6 @@ import logging
 import os
 from datetime import datetime
 
-import json5
 import requests
 from docopt import docopt
 
@@ -229,7 +228,7 @@ def load_config(configuration_file: str) -> dict | None:
     Load a configuration file and return its contents as a dict.
 
     Args:
-        configuration_file: Path to the JSON/JSON5 configuration file.
+        configuration_file: Path to the JSON configuration file.
 
     Returns:
         Parsed config dict, or None if the file is not found.
@@ -237,7 +236,7 @@ def load_config(configuration_file: str) -> dict | None:
     logging.debug("Loading config from %s...", configuration_file)
     try:
         with open(configuration_file) as file:
-            loaded = json5.load(file)
+            loaded = json.load(file)
         logging.debug("Config loaded successfully.")
         return loaded
     except FileNotFoundError:
