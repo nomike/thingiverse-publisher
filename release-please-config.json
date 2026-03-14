@@ -1,0 +1,9 @@
+{
+  "release-type": "python",
+  "packages": {
+    ".": {
+      "package-name": "thingiverse-publisher",
+      "release-type": "python"
+    }
+  }
+}
