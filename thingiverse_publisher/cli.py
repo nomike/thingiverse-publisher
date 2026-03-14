@@ -69,8 +69,7 @@ def check_file_mtime(file_path: str, type: str) -> bool:
         response = get_things_thing_id_files_file_id.sync_detailed(
             thing_id=thing_id, file_id=file_id, client=api_client
         )
-        if response.status_code != 200:
-            _raise_for_status(response)
+        _raise_for_status(response)
         file_schema = response.parsed
         if not hasattr(file_schema, "date") or file_schema.date is None:
             return True
@@ -83,8 +82,7 @@ def check_file_mtime(file_path: str, type: str) -> bool:
             size="small",
             type_="display",
         )
-        if response.status_code != 200:
-            _raise_for_status(response)
+        _raise_for_status(response)
         # Response 200 is a flexible object with "added" in additional_properties
         img = response.parsed
         added = getattr(img, "additional_properties", {}).get("added", "")
@@ -216,10 +214,10 @@ def _thing_to_patch_body(thing: dict) -> PatchThingsThingIdBody:
     )
 
 
-def _raise_for_status(response: object) -> None:
-    """Raise if SDK response indicates an error."""
+def _raise_for_status(response: object, ok: tuple[int, ...] = (200,)) -> None:
+    """Raise if response status is not in the allowed success set."""
     status = getattr(response, "status_code", None)
-    if status is not None and status >= 400:
+    if status is not None and status not in ok:
         content = getattr(response, "content", b"")
         msg = content.decode("utf-8", errors="replace") if content else ""
         raise httpx.HTTPStatusError(
@@ -253,8 +251,7 @@ def create_or_update_thing() -> None:
             response = get_users_username_things.sync_detailed(
                 username=config["username"], client=api_client
             )
-            if response.status_code != 200:
-                _raise_for_status(response)
+            _raise_for_status(response)
             data = response.parsed
             if not isinstance(data, list):
                 raise RuntimeError("Unexpected response type from get users things")
@@ -284,9 +281,12 @@ def create_or_update_thing() -> None:
             logging.info("Thing does not exist, creating a new one...")
             body = _thing_to_post_body(config["thing"])
             response = post_things.sync_detailed(client=api_client, body=body)
-            if response.status_code != 200:
-                _raise_for_status(response)
+            _raise_for_status(response, ok=(200, 201))
             created = response.parsed
+            if created is None:
+                raise RuntimeError(
+                    "post_things returned success but SDK did not parse response body"
+                )
             if hasattr(created, "id"):
                 config["thing"]["id"] = created.id
             else:
@@ -302,8 +302,7 @@ def create_or_update_thing() -> None:
             response = patch_things_thing_id.sync_detailed(
                 thing_id=config["thing"]["id"], client=api_client, body=body
             )
-            if response.status_code != 200:
-                _raise_for_status(response)
+            _raise_for_status(response)
             logging.info("Thing patched successfully!")
             logging.debug("Response data: %s", response.parsed)
 
