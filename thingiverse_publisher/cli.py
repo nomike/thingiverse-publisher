@@ -226,13 +226,14 @@ def create_or_update_thing() -> None:
 
 def load_config(configuration_file: str) -> dict | None:
     """
-    Loads a configuration file into the global config dict.
+    Load a configuration file and return its contents as a dict.
 
     Args:
-        configuration_file (str): The path of the configuration file to load.
-    """
-    global config
+        configuration_file: Path to the JSON/JSON5 configuration file.
 
+    Returns:
+        Parsed config dict, or None if the file is not found.
+    """
     logging.debug("Loading config from %s...", configuration_file)
     try:
         with open(configuration_file) as file:
