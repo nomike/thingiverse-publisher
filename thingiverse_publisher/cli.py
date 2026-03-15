@@ -220,9 +220,10 @@ def _raise_for_status(response: object, ok: tuple[int, ...] = (200,)) -> None:
     if status is not None and status not in ok:
         content = getattr(response, "content", b"")
         msg = content.decode("utf-8", errors="replace") if content else ""
+        request = getattr(response, "request", None)
         raise httpx.HTTPStatusError(
             f"Server error {status}: {msg}",
-            request=None,
+            request=request,
             response=httpx.Response(status_code=status, content=content),
         )
 
