@@ -219,6 +219,7 @@ def _thing_to_patch_body(thing: dict) -> PatchThingsThingIdBody:
         "category",
         "license",
         "is_wip",
+        "is_customizer",
         "is_remix",
         "tags",
         "ancestors",
