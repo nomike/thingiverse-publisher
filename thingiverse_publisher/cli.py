@@ -27,7 +27,7 @@ for API requests.
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 from docopt import docopt
@@ -60,6 +60,15 @@ def _thing_client() -> AuthenticatedClient:
     return client
 
 
+def _parse_utc_date(date_str: str) -> datetime:
+    """Parse ISO date string; treat as UTC when it has no timezone."""
+    s = date_str.replace("Z", "+00:00")
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def check_file_mtime(file_path: str, type: str) -> bool:
     thing_id = config["thing"]["id"]
     file_id = config[f"{type}s"][file_path]["id"]
@@ -77,7 +86,7 @@ def check_file_mtime(file_path: str, type: str) -> bool:
             or file_schema.date is UNSET
         ):
             return True
-        thingiverse_mtime = datetime.fromisoformat(str(file_schema.date).replace("Z", "+00:00"))
+        thingiverse_mtime = _parse_utc_date(str(file_schema.date))
     elif type == "image":
         response = get_things_thing_id_images_image_id.sync_detailed(
             thing_id=thing_id,
@@ -92,7 +101,7 @@ def check_file_mtime(file_path: str, type: str) -> bool:
         added = getattr(img, "additional_properties", {}).get("added", "") if img else ""
         if not added:
             return True
-        thingiverse_mtime = datetime.fromisoformat(str(added).replace("Z", "+00:00"))
+        thingiverse_mtime = _parse_utc_date(str(added))
     else:
         raise ValueError(f"Unknown type: {type}")
 
