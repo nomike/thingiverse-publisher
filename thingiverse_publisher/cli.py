@@ -85,7 +85,9 @@ def check_file_mtime(file_path: str, type: str) -> bool:
         _raise_for_status(response)
         # Response 200 is a flexible object with "added" in additional_properties
         img = response.parsed
-        added = getattr(img, "additional_properties", {}).get("added", "")
+        added = getattr(img, "additional_properties", {}).get("added", "") if img else ""
+        if not added:
+            return True
         thingiverse_mtime = datetime.fromisoformat(str(added).replace("Z", "+00:00"))
     else:
         raise ValueError(f"Unknown type: {type}")
