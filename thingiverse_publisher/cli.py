@@ -71,7 +71,11 @@ def check_file_mtime(file_path: str, type: str) -> bool:
         )
         _raise_for_status(response)
         file_schema = response.parsed
-        if not hasattr(file_schema, "date") or file_schema.date is None:
+        if (
+            not hasattr(file_schema, "date")
+            or file_schema.date is None
+            or file_schema.date is UNSET
+        ):
             return True
         thingiverse_mtime = datetime.fromisoformat(str(file_schema.date).replace("Z", "+00:00"))
     elif type == "image":
@@ -119,8 +123,7 @@ def upload_image_or_file(file_path: str, type: str) -> None:
                 resp = delete_things_thing_id_images_image_id.sync_detailed(
                     thing_id=thing_id, image_id=file_id, client=api_client
                 )
-            if resp.status_code >= 400:
-                _raise_for_status(resp)
+            _raise_for_status(resp, ok=(200, 204))
         else:
             logging.info(
                 '%s "%s" already exists on Thingiverse. Skipping upload.',
@@ -316,9 +319,9 @@ def create_or_update_thing() -> None:
         for file in config["images"]:
             upload_image(file)
 
-    except httpx.HTTPStatusError as e:
+    except httpx.HTTPError as e:
         print("Error:", e)
-        if e.response is not None:
+        if getattr(e, "response", None) is not None:
             print(
                 "Upstream error:",
                 e.response.content.decode(e.response.encoding or "utf-8", errors="replace"),
