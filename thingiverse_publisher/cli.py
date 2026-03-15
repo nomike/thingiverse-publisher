@@ -287,10 +287,10 @@ def create_or_update_thing() -> None:
                 raise RuntimeError(
                     "post_things returned success but SDK did not parse response body"
                 )
-            if hasattr(created, "id"):
-                config["thing"]["id"] = created.id
-            else:
-                config["thing"]["id"] = created.get("id")
+            created_id = getattr(created, "id", None)
+            if created_id is None:
+                raise RuntimeError("post_things response missing id")
+            config["thing"]["id"] = created_id
             logging.info("Thing created successfully!")
             logging.debug("Response data: %s", response.parsed)
         else:
