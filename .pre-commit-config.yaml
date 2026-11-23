@@ -21,7 +21,7 @@ repos:
 
   # Markdown lint (exclude CHANGELOG.md, often updated by release-please)
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.42.0
+    rev: v0.50.0
     hooks:
       - id: markdownlint
         args: [--fix]
