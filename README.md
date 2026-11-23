@@ -74,16 +74,16 @@ cc: Creative Commons - Attribution
 ## Getting a Bearer Token
 
 1. Go to <https://www.thingiverse.com/apps/create>
-1. Fill in the form
+1. Fill in the form. Set the **Callback URL** to `http://127.0.0.1:12345/`
 1. Click on "Create Application"
-1. Copy the "Client ID" and "Client Secret" to a safe place
-1. Open a browser and go to `https://www.thingiverse.com/login/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code`
+1. Copy the "Client ID" to a safe place
+1. Make sure you are logged into Thingiverse, then open:
+
+   `https://www.thingiverse.com/login/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=http://127.0.0.1:12345/&response_type=token`
+
 1. Click on "Allow"
-1. Copy the code from the address bar
-1. Open a terminal and run the following command:
-
-```bash
-curl -X POST -d "client_id=YOUR_CLIENT_ID&client_secret=YOUR_CLIENT_SECRET&code=YOUR_CODE&grant_type=authorization_code" https://www.thingiverse.com/login/oauth/access_token
-```
-
-1. Copy the `access_token` to your `.thingiverse_publisher.json` file
+1. Your browser will try to open `http://127.0.0.1:12345/`. The page will not load
+   (nothing is listening there); that is expected. Look at the address bar: the URL
+   contains `#access_token=...`. Copy the token value (everything after
+   `access_token=` up to the next `&`, if any).
+1. Put that token into your `~/.thingiverse_publisher.json` file as `bearer_token`
