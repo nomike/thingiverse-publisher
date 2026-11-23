@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.1](https://github.com/nomike/thingiverse-publisher/compare/v0.6.0...v0.6.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* send a custom User-Agent to avoid Cloudflare 403 ([#7](https://github.com/nomike/thingiverse-publisher/issues/7)) ([bccad99](https://github.com/nomike/thingiverse-publisher/commit/bccad995e6b719129b9d0f04a7851312f72227d8))
+* validate license codes and exit non-zero on API failure ([#8](https://github.com/nomike/thingiverse-publisher/issues/8)) ([2df1ac5](https://github.com/nomike/thingiverse-publisher/commit/2df1ac55950b9df608541d1b3112821d2156b839))
+
+
+### Documentation
+
+* fix OAuth instructions to use localhost callback ([#5](https://github.com/nomike/thingiverse-publisher/issues/5)) ([a84adc0](https://github.com/nomike/thingiverse-publisher/commit/a84adc0c4ad5f0fb01f5d3cf3a4d7bc7f43f0306))
+
 ## [0.6.0](https://github.com/nomike/thingiverse-publisher/compare/v0.5.1...v0.6.0) (2026-03-15)
 
 
