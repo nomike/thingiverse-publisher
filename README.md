@@ -7,7 +7,7 @@ It is in a very early stage of development, so expect breaking changes.
 
 ## Pre-requisites
 
-- Python 3.10 or later
+- Python 3.11 or later
 - A Thingiverse account
 - A Thingiverse Bearer token
 

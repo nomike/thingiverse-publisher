@@ -28,7 +28,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 from docopt import docopt
@@ -69,7 +69,7 @@ def _parse_utc_date(date_str: str) -> datetime:
     s = date_str.replace("Z", "+00:00")
     dt = datetime.fromisoformat(s)
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt
 
 
