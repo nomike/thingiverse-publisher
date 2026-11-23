@@ -33,7 +33,7 @@ Place a file `.thingiverse_publisher.json` in your home directory with the follo
 
 ```json
 {
-  "bearer_token": "123456789abcdef123456789abcdef12"
+  "bearer_token": "123456789abcdef123456789abcdef12",
   "username": "nomike"
 }
 ```
@@ -52,24 +52,41 @@ Place a file `.thingiverse_publisher.json` in the directory of your 3D model. Th
     ],
     "instructions": "Print and enjoy",
     "is_wip": true,
-    "license": "gpl3",
+    "license": "gpl"
   },
-  "files": [
-    "i3-ptfe-tube-cutting-measure.scad",
-    "i3-ptfe-tube-cutting-measure.stl"
-  ],
-  "images": []
+  "files": {
+    "i3-ptfe-tube-cutting-measure.scad": {},
+    "i3-ptfe-tube-cutting-measure.stl": {}
+  },
+  "images": {
+    "photos/preview.jpg": {}
+  }
 }
 ```
 
+`files` and `images` are objects keyed by the local path. The tool stores the Thingiverse ID of each uploaded
+file/image in the (initially empty) entry and rewrites `.thingiverse_publisher.json` after each run, so the
+next run only re-uploads files that changed. The same applies to `thing.id`, which is added after the thing
+has been created. If a run fails part-way, the config is still saved (so IDs of things already created are
+kept) and the tool exits with a non-zero status.
+
 ### Available license options
 
-Thingiverse currently does not document which licenses you can use in the API.
-This interface does not seem to be symetric though. What you get as a value for "license" in a response, is not accepted as a value in a request. I've created a support case for getting a list of valid options with thingiverse, and I'm currently waiting for a response.
+The `license` value must be one of these codes (the tool stops with an error for anything else, instead of
+silently picking a different license). The Thingiverse display name, e.g. `BSD License`, is also accepted.
+If `license` is omitted, new things are created with `cc`.
 
-Valid options I have found so far are:
-
-cc: Creative Commons - Attribution
+| Code       | License                                                  |
+| ---------- | -------------------------------------------------------- |
+| `cc`       | Creative Commons - Attribution                           |
+| `cc-sa`    | Creative Commons - Attribution - Share Alike             |
+| `cc-nd`    | Creative Commons - Attribution - No Derivatives          |
+| `cc-nc-sa` | Creative Commons - Attribution - Non-Commercial - Share Alike |
+| `cc-nc-nd` | Creative Commons - Attribution - Non-Commercial - No Derivatives |
+| `pd0`      | Public Domain                                            |
+| `gpl`      | GNU - GPL                                                |
+| `lgpl`     | GNU - LGPL                                               |
+| `bsd`      | BSD License                                              |
 
 ## Getting a Bearer Token
 
