@@ -76,17 +76,17 @@ The `license` value must be one of these codes (the tool stops with an error for
 silently picking a different license). The Thingiverse display name, e.g. `BSD License`, is also accepted.
 If `license` is omitted, new things are created with `cc`.
 
-| Code       | License                                                  |
-| ---------- | -------------------------------------------------------- |
-| `cc`       | Creative Commons - Attribution                           |
-| `cc-sa`    | Creative Commons - Attribution - Share Alike             |
-| `cc-nd`    | Creative Commons - Attribution - No Derivatives          |
-| `cc-nc-sa` | Creative Commons - Attribution - Non-Commercial - Share Alike |
+| Code       | License                                                          |
+| ---------- | ---------------------------------------------------------------- |
+| `cc`       | Creative Commons - Attribution                                   |
+| `cc-sa`    | Creative Commons - Attribution - Share Alike                     |
+| `cc-nd`    | Creative Commons - Attribution - No Derivatives                  |
+| `cc-nc-sa` | Creative Commons - Attribution - Non-Commercial - Share Alike    |
 | `cc-nc-nd` | Creative Commons - Attribution - Non-Commercial - No Derivatives |
-| `pd0`      | Public Domain                                            |
-| `gpl`      | GNU - GPL                                                |
-| `lgpl`     | GNU - LGPL                                               |
-| `bsd`      | BSD License                                              |
+| `pd0`      | Public Domain                                                    |
+| `gpl`      | GNU - GPL                                                        |
+| `lgpl`     | GNU - LGPL                                                       |
+| `bsd`      | BSD License                                                      |
 
 ## Getting a Bearer Token
 
