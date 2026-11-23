@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 from thingiverse_publisher import __version__
-from thingiverse_publisher.cli import load_config
+from thingiverse_publisher.cli import USER_AGENT, build_client, load_config
 
 
 def test_version_is_string() -> None:
@@ -30,3 +30,11 @@ def test_load_config_parses_valid_json() -> None:
         assert result["username"] == "test"
     finally:
         Path(path).unlink(missing_ok=True)
+
+
+def test_build_client_sends_custom_user_agent() -> None:
+    """build_client sets a non-default User-Agent and the bearer token."""
+    headers = build_client("abc").get_httpx_client().headers
+    assert headers["User-Agent"] == USER_AGENT
+    assert f"thingiverse-publisher/{__version__}" == USER_AGENT
+    assert headers["Authorization"] == "Bearer abc"

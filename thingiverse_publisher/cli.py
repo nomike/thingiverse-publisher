@@ -48,6 +48,9 @@ from thingiverse.types import UNSET
 
 from thingiverse_publisher import __version__
 
+# Thingiverse's Cloudflare front end challenges the default "python-httpx" User-Agent with a 403.
+USER_AGENT = f"thingiverse-publisher/{__version__}"
+
 local_config: dict = {}
 config: dict = {}
 client: AuthenticatedClient | None = None
@@ -166,6 +169,7 @@ def upload_image_or_file(file_path: str, type: str) -> None:
             prepare_data["action"],
             files={"file": f},
             data=prepare_data["fields"],
+            headers={"User-Agent": USER_AGENT},
         )
     logging.debug("Response status code: %s", upload_response.status_code)
     upload_response.raise_for_status()
@@ -341,6 +345,15 @@ def create_or_update_thing() -> None:
         raise
 
 
+def build_client(bearer_token: str) -> AuthenticatedClient:
+    """Create the Thingiverse API client used for all API requests."""
+    return AuthenticatedClient(
+        base_url=BASE_URL_PRODUCTION,
+        token=bearer_token,
+        headers={"User-Agent": USER_AGENT},
+    )
+
+
 def load_config(configuration_file: str) -> dict | None:
     """
     Load a configuration file and return its contents as a dict.
@@ -390,10 +403,7 @@ def main() -> None:
     with open("print-instructions.md", "rb") as file:
         config["thing"]["instructions"] = file.read().decode("utf-8")
 
-    client = AuthenticatedClient(
-        base_url=BASE_URL_PRODUCTION,
-        token=config["bearer_token"],
-    )
+    client = build_client(config["bearer_token"])
 
     create_or_update_thing()
     logging.info("Saving config...")
