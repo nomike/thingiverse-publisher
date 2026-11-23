@@ -27,6 +27,7 @@ for API requests.
 import json
 import logging
 import os
+import sys
 from datetime import datetime, timezone
 
 import httpx
@@ -136,6 +137,8 @@ def upload_image_or_file(file_path: str, type: str) -> None:
                     thing_id=thing_id, image_id=file_id, client=api_client
                 )
             _raise_for_status(resp, ok=(200, 204))
+            # The old id no longer exists; don't keep it if the re-upload below fails.
+            local_config[f"{type}s"][file_path] = {}
         else:
             logging.info(
                 '%s "%s" already exists on Thingiverse. Skipping upload.',
@@ -193,13 +196,53 @@ def upload_file(file_path: str) -> None:
     upload_image_or_file(file_path, "file")
 
 
+VALID_LICENSES: tuple[str, ...] = tuple(sorted(lic.value for lic in PostThingsBodyLicense))
+
+# Display names Thingiverse shows for each license code (lower-cased) -> API code.
+_LICENSE_DISPLAY_NAMES: dict[str, str] = {
+    "bsd license": "bsd",
+    "creative commons - attribution": "cc",
+    "creative commons - attribution - share alike": "cc-sa",
+    "creative commons - attribution - no derivatives": "cc-nd",
+    "creative commons - attribution - non-commercial - share alike": "cc-nc-sa",
+    "creative commons - attribution - non-commercial - no derivatives": "cc-nc-nd",
+    "public domain": "pd0",
+    "gnu - gpl": "gpl",
+    "gnu - lgpl": "lgpl",
+}
+
+
+class InvalidLicenseError(ValueError):
+    """Raised when the configured license is not accepted by the Thingiverse API."""
+
+
+def normalize_license(value: object) -> PostThingsBodyLicense:
+    """
+    Convert a configured license value to a PostThingsBodyLicense.
+
+    Accepts the API codes (case-insensitive) and the Thingiverse display names such as
+    "BSD License". Raises InvalidLicenseError listing the valid codes for anything else;
+    never falls back to a default.
+    """
+    if isinstance(value, str):
+        key = value.strip().lower()
+        key = _LICENSE_DISPLAY_NAMES.get(key, key)
+        try:
+            return PostThingsBodyLicense(key)
+        except ValueError:
+            pass
+    raise InvalidLicenseError(
+        f"{value!r} is not a valid license. Valid license codes: {', '.join(VALID_LICENSES)}"
+    )
+
+
 def _thing_to_post_body(thing: dict) -> PostThingsBody:
     """Build PostThingsBody from config thing dict (without id)."""
-    license_val = thing.get("license", "cc")
-    try:
-        license_enum = PostThingsBodyLicense(license_val)
-    except ValueError:
-        license_enum = PostThingsBodyLicense.CC
+    license_val = thing.get("license")
+    # A missing license defaults to cc; an invalid one is an error.
+    license_enum = (
+        PostThingsBodyLicense.CC if license_val is None else normalize_license(license_val)
+    )
     return PostThingsBody(
         name=thing["name"],
         category=thing.get("category", "Other"),
@@ -228,9 +271,10 @@ def _thing_to_patch_body(thing: dict) -> PatchThingsThingIdBody:
         "tags",
         "ancestors",
     }
-    return PatchThingsThingIdBody.from_dict(
-        {k: v for k, v in thing.items() if k in patch_keys and v is not None}
-    )
+    fields = {k: v for k, v in thing.items() if k in patch_keys and v is not None}
+    if "license" in fields:
+        fields["license"] = normalize_license(fields["license"]).value
+    return PatchThingsThingIdBody.from_dict(fields)
 
 
 def _raise_for_status(response: object, ok: tuple[int, ...] = (200,)) -> None:
@@ -259,6 +303,8 @@ def create_or_update_thing() -> None:
 
     Raises:
         ValueError: If more than one thing with the same name is found on Thingiverse.
+        InvalidLicenseError: If the configured license is not a valid Thingiverse license.
+        httpx.HTTPError: If an API request fails.
 
     """
     global local_config, config
@@ -333,13 +379,6 @@ def create_or_update_thing() -> None:
         for file in config["images"]:
             upload_image(file)
 
-    except httpx.HTTPError as e:
-        print("Error:", e)
-        if getattr(e, "response", None) is not None:
-            print(
-                "Upstream error:",
-                e.response.content.decode(e.response.encoding or "utf-8", errors="replace"),
-            )
     except Exception as e:
         print("Error:", e)
         raise
@@ -403,14 +442,42 @@ def main() -> None:
     with open("print-instructions.md", "rb") as file:
         config["thing"]["instructions"] = file.read().decode("utf-8")
 
+    if config["thing"].get("license") is not None:
+        try:
+            normalize_license(config["thing"]["license"])
+        except InvalidLicenseError as e:
+            logging.error("Invalid configuration: %s", e)
+            sys.exit(1)
+
     client = build_client(config["bearer_token"])
 
-    create_or_update_thing()
-    logging.info("Saving config...")
-    local_config["thing"].pop("description")
-    local_config["thing"].pop("instructions")
+    failed = False
+    try:
+        create_or_update_thing()
+    except httpx.HTTPError as e:
+        failed = True
+        logging.error("Publishing failed: %s", e)
+        response = getattr(e, "response", None)
+        if response is not None:
+            logging.error(
+                "Upstream error: %s",
+                response.content.decode(response.encoding or "utf-8", errors="replace"),
+            )
+
+    if failed:
+        logging.warning(
+            "Saving config despite the failure, so the IDs of the thing and files created "
+            "before the error are kept and the next run does not create duplicates."
+        )
+    else:
+        logging.info("Saving config...")
+    local_config.get("thing", {}).pop("description", None)
+    local_config.get("thing", {}).pop("instructions", None)
     with open(".thingiverse_publisher.json", "w") as file:
         json.dump(local_config, file, indent=2)
+
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
